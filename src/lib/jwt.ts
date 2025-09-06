@@ -1,22 +1,35 @@
-import jwt from 'jsonwebtoken';
-import { UserRole } from '../../generated/prisma';
+// src/lib/jwt.ts
+import jwt, { SignOptions, Secret } from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const rawSecret = process.env.JWT_SECRET;
+if (!rawSecret) throw new Error('Missing JWT_SECRET env var');
+export const JWT_SECRET = rawSecret as Secret;
 
-interface TokenPayload {
+// Derive the correct expiresIn type from SignOptions
+type ExpiresIn = NonNullable<SignOptions['expiresIn']>;
+const rawExpiresIn = process.env.JWT_EXPIRES_IN;
+if (!rawExpiresIn) throw new Error('Missing JWT_EXPIRES_IN env var');
+const expiresIn = rawExpiresIn as ExpiresIn;
+
+export interface JWTPayload {
   userId: string;
-  email: string;
-  role: UserRole;
+  role: string;
+  iat?: number;
+  exp?: number;
 }
 
-export const generateToken = (payload: TokenPayload): string => {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
-};
+const signOptions: SignOptions = { expiresIn };
 
-export const verifyToken = (token: string): TokenPayload => {
+export function signToken(
+  payload: Omit<JWTPayload, 'iat' | 'exp'>
+): string {
+  return jwt.sign(payload, JWT_SECRET, signOptions);
+}
+
+export function verifyToken(token: string): JWTPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as TokenPayload;
-  } catch (error) {
-    throw new Error('Invalid or expired token');
+    return jwt.verify(token, JWT_SECRET) as JWTPayload;
+  } catch {
+    return null;
   }
-};
+}
