@@ -36,7 +36,7 @@ export const auth = (req: Request, res: Response, next: NextFunction) => {
     
     next();
   } catch (error) {
-    logger.error('Authentication error:', error);
+    logger.error('Authentication error:', error as string);
     return res.status(401).json({ 
       success: false, 
       error: 'Authentication failed' 
