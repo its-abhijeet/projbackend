@@ -1,45 +1,38 @@
+import jwt, { Secret, JwtPayload } from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken } from '../lib/jwt';
 import logger from '../logger';
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        userId: string;
-        email: string;
-        role: string;
-      };
-    }
-  }
+const rawSecret = process.env.JWT_SECRET;
+if (!rawSecret) {
+  throw new Error('Missing JWT_SECRET env var');
+}
+export const JWT_SECRET = rawSecret as Secret;
+
+interface JWTPayload extends JwtPayload {
+  userId: string;
+  role: 'USER' | 'SELLER' | 'ADMIN';
 }
 
-export const auth = (req: Request, res: Response, next: NextFunction) => {
+export interface CustomRequest extends Request {
+  token: JWTPayload;
+}
+
+export const auth = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const authHeader = req.headers.authorization;
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    logger.info(token);
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Authentication required' 
-      });
+    if (!token) {
+      throw new Error();
     }
 
-    const token = authHeader.split(' ')[1];
-    const decoded = verifyToken(token);
-    
-    req.user = {
-      userId: decoded.userId,
-      email: decoded.email,
-      role: decoded.role
-    };
-    
+    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    (req as CustomRequest).token = decoded;
+    // logger.info("Hello", decoded);
+
     next();
-  } catch (error) {
-    logger.error('Authentication error:', error as string);
-    return res.status(401).json({ 
-      success: false, 
-      error: 'Authentication failed' 
-    });
+  } catch (err) {
+    logger.info("Error", err);
+    res.status(401).send('Please authenticate');
   }
 };
