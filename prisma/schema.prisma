@@ -23,5 +23,188 @@ model User {
   countryCode        String?     
   phoneNumber        String?     
   role               UserRole    @default(USER)
+  seller             Seller?     
+  admin              Admin?      
+  chats              ChatUser[]
+  messages           Message[]
+  isEmailVerified    Boolean     @default(false)
+  isDocumentVerified Boolean     @default(false)
+  notifications      Notification[]
   createdAt          DateTime    @default(now())
+  enquiries          Enquiry[]
+}
+
+model Seller {
+  user               User      @relation(fields: [userId], references: [id])
+  userId             String    @id
+  businessDesc       String    @default("")
+  businessType       String    @default("")
+  verificationDocUrl String    @map("verification_doc_url")
+  products           Product[] @relation("SellerProducts")
+}
+
+model Admin {
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String    @id
+  permissions String[]  @default([])
+}
+
+model ChatRoom {
+  id        String      @id @default(uuid())
+  users     ChatUser[]
+  messages  Message[]
+  createdAt DateTime    @default(now())
+}
+
+model ChatUser {
+  id       String    @id @default(uuid())
+  user     User      @relation(fields: [userId], references: [id])
+  userId   String
+  room     ChatRoom  @relation(fields: [roomId], references: [id])
+  roomId   String
+  joinedAt DateTime  @default(now())
+
+  @@unique([userId, roomId])
+}
+
+model Message {
+  id        String    @id @default(uuid())
+  room      ChatRoom  @relation(fields: [roomId], references: [id])
+  roomId    String
+  sender    User      @relation(fields: [senderId], references: [id])
+  senderId  String
+  text      String
+  createdAt DateTime  @default(now())
+}
+
+enum Category {
+  Unknown
+  HDPE
+  LDPE
+  PP
+  PET
+  PS
+  PVC
+  ABS
+  PA
+  Others
+}
+
+enum Currency {
+  EUR
+  USD
+  CAD
+  MXN
+  BRL
+  ARS
+  CLP
+  JPY
+  CNY
+  INR
+  AUD
+  NZD
+  SGD
+  KRW
+  HKD
+  AED
+  SAR
+  QAR
+  ZAR
+  NGN
+  EGP
+  KES
+  GBP
+  CHF
+  SEK
+  DKK
+  NOK
+  PLN
+  CZK
+  HUF
+  RON
+  HRK
+  BGN
+  ISK
+  RUB
+  THB
+}
+
+// New enum for product units
+enum Unit {
+  MT
+  KT
+  TON
+  KILO
+}
+
+model Product {
+  id              Int        @id @default(autoincrement())
+  seller          Seller     @relation("SellerProducts", fields: [sellerUserId], references: [userId], onDelete: Cascade)
+  sellerUserId    String
+  name            String
+  price           Int
+  currency        Currency   @default(AED)
+  quantity        Decimal @default(0.0)
+  unit            Unit       @default(TON)
+  category        Category   @default(Unknown)
+  country        String @default("Unknown")
+  color          String @default("Unknown")
+  sourceMaterial String @default("Unknown")
+  batchSize      Decimal    @default(0.0)
+  minimumOrderQuantity Decimal @default(0.0)
+  application     String @default("Unknown")
+  description     String @default("Unknown")
+  additionalNotes String?    
+  images          Image[]    
+  isApproved      Int        @default(0) // 0: pending, 1: approved, -1: rejected, -2: deleted
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?  @map("deleted_at")
+  notifications   Notification[]
+  enquiries      Enquiry[]
+}
+
+model Image {
+  id         Int      @id @default(autoincrement())
+  url        String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId  Int
+  createdAt  DateTime @default(now())
+}
+
+model ChatLead {
+  id          Int      @id @default(autoincrement())
+  phoneNumber String?  
+  companyName String?  
+  userName    String?  
+  createdAt   DateTime @default(now())
+}
+
+enum NotificationType {
+  PRODUCT_CREATED
+  PRODUCT_UPDATED
+  PRODUCT_APPROVED
+  PRODUCT_REJECTED
+  PRODUCT_DELETED
+}
+
+model Notification {
+  id         Int      @id @default(autoincrement())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  product    Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productId  Int?
+  type       NotificationType
+  isRead     Boolean   @default(false)
+  createdAt  DateTime   @default(now())
+}
+
+model Enquiry {
+  id          Int      @id @default(autoincrement())
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId   Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  message     String
+  createdAt   DateTime @default(now())
 }
